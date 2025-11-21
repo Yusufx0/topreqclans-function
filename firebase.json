@@ -1,4 +1,18 @@
 {
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/processMessage",
+        "function": "processMessage"
+      }
+    ]
+  },
   "functions": {
     "source": "functions"
   }
