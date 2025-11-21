@@ -1,11 +1,29 @@
-# ... (Üst kısımlar aynı kalacak)
+name: Deploy Cloud Functions # 1. satır
 
-      # 3. Firebase Action ile dağıtımı gerçekleştir - YENİ ACTION KULLANILDI
+on: # 2. satır
+  push: # 3. satır
+    branches: # 4. satır (Hatanın kaynağı büyük ihtimalle burasıdır)
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Depo kodunu çek
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      # 2. Functions klasörüne gidip bağımlılıkları kur
+      - name: Install Functions Dependencies
+        run: cd functions && npm install
+        
+      # 3. Firebase Action ile dağıtımı gerçekleştir
       - name: Deploy Cloud Functions to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0 # Hosting deploy Action'ı, functions'ı da dağıtabilir
+        uses: FirebaseExtended/action-hosting-deploy@v0 # Yeni action
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}' # Standart GitHub token'ı
-          firebaseServiceAccount: '${{ secrets.FIREBASE_DEPLOY_TOKEN }}' # Token'ınızı servis hesabı olarak kullandık
-          projectId: top-req-clans-63d88 # Proje ID'si
-          target: functions # Sadece functions'ı hedefle
-
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_DEPLOY_TOKEN }}'
+          projectId: top-req-clans-63d88 # KONTROL EDİN
+          target: functions
