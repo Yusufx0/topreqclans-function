@@ -21,9 +21,10 @@ jobs:
         
       # 3. Firebase Action ile Dağıtım (Tüm CLI adımlarının yerini alır)
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@v2 # Hazır Action kullanıldı
-        with:
+        # ÖNERİLEN GÜNCELLEME: v2 yerine ana dalı kullanıyoruz
+        uses: w9jds/firebase-action@main
           # Dağıtım argümanları: sadece functions dağıt
+          with:
           args: deploy --only functions
           
         env:
