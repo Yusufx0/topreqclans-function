@@ -1,10 +1,10 @@
-name: Deploy Cloud Functions # İş akışı adı
+name: Deploy Cloud Functions
 
 on:
   push:
     branches:
-      - main # Sadece 'main' dalına yapılan itmeleri dinle
-  workflow_dispatch: # Manuel çalıştırmaya izin ver
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -21,10 +21,10 @@ jobs:
         
       # 3. Firebase Action ile dağıtımı gerçekleştir
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@main # Sürüm hatasını çözmek için @main kullanıldı
+        uses: w9jds/firebase-action@v1 # Hata çözümü: Çalıştığı bilinen v1 etiketine geçildi
         with:
           args: deploy --only functions
         
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          PROJECT_ID: top-req-clans-63d88 # Lütfen bu Proje ID'sinin doğru olduğunu KONTROL EDİN
+          PROJECT_ID: top-req-clans-63d88 # Proje ID'sinin doğruluğunu kontrol edin
