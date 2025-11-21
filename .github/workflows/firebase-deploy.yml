@@ -1,4 +1,4 @@
-functions: Deploy Cloud Functions
+name: Deploy Cloud Functions # <--- İLK SATIR BU OLMALI
 
 on:
   push:
