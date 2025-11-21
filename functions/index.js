@@ -1,73 +1,85 @@
+// functions/index.js
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const Filter = require('bad-words'); // Küfür algılama kütüphanesi
 
+// Firebase Admin SDK'yı başlatın (Zaten dağıtımınızda başlatılmış olmalı)
 admin.initializeApp();
-
 const db = admin.database();
-const filter = new Filter();
 
-// Kullanıcı istatistiklerinin tutulduğu yer
-const USER_STATS_REF = 'userStats'; 
-// Küfürlü mesajları yakalamak için Cloud Function
-exports.moderateChat = functions.database.ref('/chat/{messageId}')
-    .onCreate(async (snapshot, context) => {
-        const message = snapshot.val();
-        const text = message.text;
-        const uid = context.auth.uid; // Mesajı gönderen kullanıcının UID'si
+// Basit Türkçe/İngilizce REGEX Küfür Listesi (İhtiyaca göre genişletilmelidir)
+// NOT: Gerçek çok dilli sistemler için Google Cloud Natural Language API gereklidir.
+const TOXIC_WORDS = new RegExp([
+    'küfür', 
+    'hakaret', 
+    'lanet',
+    'aptal',
+    'salak',
+    'suck', 
+    'shit',
+    'fuck',
+    'bitch'
+].join('|'), 'gi'); // 'gi' bayrakları: Global (tüm eşleşmeleri bul) ve Case-Insensitive (büyük/küçük harf duyarsız)
 
-        // 1. KÜFÜR TESPİTİ
-        if (filter.isProfane(text)) {
-            console.log(`[MODERATION] Küfür tespit edildi: ${text} - UID: ${uid}`);
+const MAX_MESSAGES = 100;
 
-            const statsRef = db.ref(`${USER_STATS_REF}/${uid}`);
-            const statsSnapshot = await statsRef.once('value');
-            const stats = statsSnapshot.val() || { strikes: 0, muteUntil: 0 };
-            
-            let newStrikes = stats.strikes + 1;
-            let muteDurationMinutes = 0;
-            let muteWarning = "";
+/**
+ * İstemciden gelen mesajı alır, küfür kontrolü yapar ve veritabanına kaydeder.
+ * Bu fonksiyon, istemci tarafından httpsCallable ile çağrılacaktır.
+ */
+exports.processMessage = functions.https.onCall(async (data, context) => {
+    // 1. Kimlik Doğrulama Kontrolü
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Giriş yapılmalı. Mesaj gönderilemedi.');
+    }
 
-            // 2. CEZA HESAPLAMA VE MESAJI SİLME
+    const uid = context.auth.uid;
+    const { name, photo, text } = data;
 
-            // Mesajı derhal sil (Küfürlü olduğu için)
-            await snapshot.ref.remove();
+    if (!text || text.trim() === '') {
+        throw new functions.https.HttpsError('invalid-argument', 'Mesaj içeriği boş olamaz.');
+    }
+    
+    // 2. Küfür Algılama ve Sansürleme
+    let processedText = text.trim();
+    let isCensored = false;
 
-            if (newStrikes === 1) {
-                // İlk küfür: Sadece uyarı + silme
-                muteWarning = "İlk uyarı: Küfürlü mesajınız silindi.";
-                muteDurationMinutes = 0; 
-            } else if (newStrikes === 2) {
-                // İkinci küfür: 10 dakika mute + uyarı + silme
-                muteWarning = "İkinci uyarı: 10 dakika boyunca susturuldunuz.";
-                muteDurationMinutes = 10;
-            } else if (newStrikes >= 3) {
-                // Üçüncü ve sonrası: 24 saat mute + uyarı + silme
-                muteWarning = "Son uyarı: 24 saat boyunca susturuldunuz. Kuralları ihlal etmeye devam ederseniz banlanacaksınız.";
-                newStrikes = 3; // 3. uyarıdan sonra sayacı artırmanın anlamı yok
-                muteDurationMinutes = 24 * 60; // 24 saat
-            }
-            
-            const muteUntil = Date.now() + (muteDurationMinutes * 60 * 1000);
-
-            // 3. KULLANICI İSTATİSTİKLERİNİ GÜNCELLEME
-            await statsRef.update({
-                strikes: newStrikes,
-                muteUntil: muteUntil,
-                lastMuteMessage: muteWarning
-            });
-
-            // Kullanıcıya özel bir bildirim mesajı gönderebiliriz (örneğin bir "uyarı" mesajı ile)
-            await db.ref(`warnings/${uid}`).push({
-                message: muteWarning,
-                time: Date.now()
-            });
-
-            console.log(`[MODERATION] UID: ${uid} - Yeni ceza: ${muteWarning}`);
-            return null;
-
-        } else {
-            // Mesaj temiz, devam et
-            return null;
-        }
+    // REGEX Testi
+    if (TOXIC_WORDS.test(processedText)) {
+        isCensored = true;
+        
+        // Basit sansürleme mantığı: Kelimenin yerine yıldız koy.
+        processedText = processedText.replace(TOXIC_WORDS, (match) => {
+            return '*'.repeat(match.length);
+        });
+        functions.logger.log(`[CENSURED] Küfür tespit edildi: ${text} -> ${processedText}`);
+    } 
+    
+    // 3. Veritabanına Kayıt
+    await db.ref("chat").push({
+        name: name,
+        photo: photo,
+        text: processedText,
+        time: admin.database.ServerValue.TIMESTAMP, // Sunucu zamanını kullan
+        isCensored: isCensored
     });
+    
+    // 4. Sohbet Sınırı Uygulama (En eski mesajları sil)
+    // Sınırın aşılıp aşılmadığını kontrol etmek için sadece 101. mesajı çekeriz.
+    const snapshot = await db.ref("chat").orderByKey().limitToFirst(MAX_MESSAGES + 1).once('value');
+    const items = snapshot.val() || {};
+    const keys = Object.keys(items);
+    
+    if (keys.length > MAX_MESSAGES) {
+        // İlk (en eski) anahtarı siliyoruz
+        const oldestKey = keys[0];
+        await db.ref("chat/" + oldestKey).remove();
+        functions.logger.log(`[LIMIT] En eski mesaj silindi: ${oldestKey}`);
+    }
+
+    return { 
+        status: "success", 
+        censored: isCensored, 
+        message: processedText 
+    };
+});
