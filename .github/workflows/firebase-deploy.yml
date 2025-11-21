@@ -1,11 +1,27 @@
-# ... (Üst kısımlar aynı kalacak)
+name: Deploy Cloud Functions
 
-      # 3. Firebase Action ile dağıtımı gerçekleştir
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install Functions Dependencies
+        run: cd functions && npm install
+        
       - name: Deploy Cloud Functions to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}' # Standart GitHub token'ı
-          # Buradaki 'FIREBASE_DEPLOY_TOKEN' yerine, Secret'a kaydettiğiniz 'FIREBASE_TOKEN' adını kullanmalısınız.
-          firebaseServiceAccount: '${{ secrets.FIREBASE_TOKEN }}'
-          projectId: top-req-clans-63d88 # KONTROL EDİN
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_TOKEN }}' # Secret'ınızın doğru adı
+          projectId: top-req-clans-63d88 # Lütfen KONTROL EDİN
           target: functions
+
