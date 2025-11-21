@@ -20,7 +20,7 @@ jobs:
       - name: 2. Node.js Kurulumu (Gerekli Sürüm)
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # Cloud Functions için önerilen LTS sürümü
+          node-version: '20' # <-- HATA GİDERİLDİ: Node.js 20.x'e yükseltildi
 
       - name: 3. Fonksiyon Bağımlılıklarını Kur (npm install)
         # functions klasörüne girer ve package.json içindeki bağımlılıkları yükler
@@ -29,16 +29,7 @@ jobs:
       - name: 4. Firebase'e Dağıtma (Deploy)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          # Dağıtımı yapmak için GitHub Actions'a Firebase Kimlik Bilgilerini sağlar
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          
-          # HATA ÇÖZÜMÜ: Burası, tüm yetki hatalarını aşmamızı sağlayan Secret'tır.
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' 
-          
-          # Proje ID'niz
           projectId: top-req-clans-63d88
-          
-          # Sadece Cloud Functions ve Hosting dosyalarını dağıt (sadece functions demedik)
-          # Eğer index.html dosyanız 'hosting' klasöründe değilse bu satırda 'only' komutu kullanmayın.
-          # Ancak genellikle hem 'functions' hem de 'hosting' dağıtılır.
           channelId: live 
