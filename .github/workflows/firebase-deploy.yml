@@ -1,34 +1,30 @@
-name: Deploy Cloud Functions
+name: Deploy Cloud Functions # İş akışı adı
 
 on:
   push:
     branches:
-      - main
+      - main # Sadece 'main' dalına yapılan itmeleri dinle
+  workflow_dispatch: # Manuel çalıştırmaya izin ver
 
 jobs:
-  deploy: # 'build' yerine 'deploy' olarak değiştirildi
+  deploy:
     runs-on: ubuntu-latest
     
     steps:
-      # 1. Repo'yu Çek
+      # 1. Depo kodunu çek
       - name: Checkout Repo
-        uses: actions/checkout@v4 # Daha güncel versiyon kullanıldı
+        uses: actions/checkout@v4
 
-      # 2. Functions Bağımlılıklarını Kur
-      # Bu adımı koruyoruz çünkü 'bad-words' gibi özel bağımlılıklar var.
-      - name: Install Functions Dependencies (Node 18)
+      # 2. Functions klasörüne gidip bağımlılıkları (bad-words) kur
+      - name: Install Functions Dependencies
         run: cd functions && npm install
         
-      # 3. Firebase Action ile Dağıtım (Tüm CLI adımlarının yerini alır)
+      # 3. Firebase Action ile dağıtımı gerçekleştir
       - name: Deploy to Firebase
-        # ÖNERİLEN GÜNCELLEME: v2 yerine ana dalı kullanıyoruz
-        uses: w9jds/firebase-action@main
-          # Dağıtım argümanları: sadece functions dağıt
-          with:
+        uses: w9jds/firebase-action@main # Sürüm hatasını çözmek için @main kullanıldı
+        with:
           args: deploy --only functions
-          
+        
         env:
-          # Projenin ID'sini ve Token'ı environment değişkenleri olarak geçiriyoruz
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          # Buraya Firebase Proje ID'nizi EKLEMEYİ unutmayın! (Örneğin: topreqclans-63d88)
-          PROJECT_ID: top-req-clans-63d88 # Lütfen bu değeri kontrol edin!
+          PROJECT_ID: top-req-clans-63d88 # Lütfen bu Proje ID'sinin doğru olduğunu KONTROL EDİN
