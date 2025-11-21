@@ -1,30 +1,11 @@
-name: Deploy Cloud Functions
+# ... (Üst kısımlar aynı kalacak)
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-      # 1. Depo kodunu çek
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      # 2. Functions klasörüne gidip bağımlılıkları (bad-words) kur
-      - name: Install Functions Dependencies
-        run: cd functions && npm install
-        
-      # 3. Firebase Action ile dağıtımı gerçekleştir
-      - name: Deploy to Firebase
-        uses: w9jds/firebase-action@v1 # Hata çözümü: Çalıştığı bilinen v1 etiketine geçildi
+      # 3. Firebase Action ile dağıtımı gerçekleştir - YENİ ACTION KULLANILDI
+      - name: Deploy Cloud Functions to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0 # Hosting deploy Action'ı, functions'ı da dağıtabilir
         with:
-          args: deploy --only functions
-        
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          PROJECT_ID: top-req-clans-63d88 # Proje ID'sinin doğruluğunu kontrol edin
+          repoToken: '${{ secrets.GITHUB_TOKEN }}' # Standart GitHub token'ı
+          firebaseServiceAccount: '${{ secrets.FIREBASE_DEPLOY_TOKEN }}' # Token'ınızı servis hesabı olarak kullandık
+          projectId: top-req-clans-63d88 # Proje ID'si
+          target: functions # Sadece functions'ı hedefle
+
